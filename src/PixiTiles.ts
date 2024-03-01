@@ -56,12 +56,15 @@ export class PixiTiles {
   height: number;
   width: number;
   tiler: (transform: d3.ZoomTransform) => TileInfo;
-  tileInfo: TileInfo;
   app: PIXI.Application<HTMLCanvasElement>;
   pMain: PIXI.Container;
   tileCache: Map<TileCoordinateString, PIXI.Graphics> = new Map();
 
   constructor(container: HTMLElement, height: number, width: number) {
+    this.height = height;
+    this.width = width;
+    
+    // setup the PIXI app
     this.app = new PIXI.Application<HTMLCanvasElement>({
       width,
       height,
@@ -72,9 +75,6 @@ export class PixiTiles {
     container.appendChild(this.app.view);
     this.pMain = new PIXI.Container();
     this.app.stage.addChild(this.pMain);
-
-    this.height = height;
-    this.width = width;
 
     // Create tiler
     this.tiler = d3Tile.tile().extent([
@@ -99,41 +99,47 @@ export class PixiTiles {
         zoomBehavior.transform,
         d3.zoomIdentity.translate(width >> 1, height >> 1).scale(1 << 10)
       );
-    this.tileInfo = this.tiler(d3.zoomTransform(this.app.view));
-    this.draw();
+
+    // Determine the initial tiles to draw and draw them
+    const tilesToDraw = this.tiler(d3.zoomTransform(this.app.view));
+    this.draw(tilesToDraw);
   }
 
-  draw() {
-
-    for (const tile of this.tileInfo) {
+  draw(tilesToDraw: TileInfo) {
+    // Iterate over the tiles and reposition or create them
+    for (const tile of tilesToDraw) {
       const cachedTile = this.tileCache.get(tile.toString());
-      const [x, y] = getTilePosition(tile, this.tileInfo);
-
+      const [x, y] = getTilePosition(tile, tilesToDraw);
+      // If the tile is already in the cache, we just need to reposition it
       if (cachedTile) {
         cachedTile.visible = true;
         cachedTile.position.set(x, y);
-        cachedTile.scale.set(this.tileInfo.scale / 256);
+        cachedTile.scale.set(tilesToDraw.scale / 256);
         continue;
       }
+      // If the tile is not in the cache, we need to create it
       const gTile = new PIXI.Graphics();
       gTile.beginFill(d3.interpolateRainbow(hilbert(...tile)));
       gTile.drawRect(0, 0, 256, 256);
       gTile.endFill();
       gTile.position.set(x, y);
-      gTile.scale.set(this.tileInfo.scale / 256);
+      gTile.scale.set(tilesToDraw.scale / 256);
       this.pMain.addChild(gTile);
+      // Add the created tile to the cache
       this.tileCache.set(tile.toString(), gTile);
     }
+    // Hide any tiles that are in the cache but not in the tilesToDraw
+    // The following could be optimized, but this is fine for now for simplicity
     for (const [tileString, gTile] of this.tileCache) {
-      if (!this.tileInfo.find((tile) => tile.toString() === tileString)) {
+      if (!tilesToDraw.find((tile) => tile.toString() === tileString)) {
         gTile.visible = false;
       }
     }
-
   }
+
+  // This function is called when the zoom changes
   zoomed(transform: d3.ZoomTransform) {
-    const tiles = this.tiler(transform); // gives you [[x, y, z], ...], scale, translate
-    this.tileInfo = tiles;
-    this.draw();
+    const tilesToDraw = this.tiler(transform); // gives you [[x, y, z], ...], scale, translate
+    this.draw(tilesToDraw);
   }
 }
