@@ -36,7 +36,17 @@ function hilbert(x: number, y: number, z: number) {
   return d / (1 << (z * 2));
 }
 
+function getTilePosition(tile: TileCoordinate, tiles: TileInfo) {
+  const [x, y] = tile;
+  const {
+    translate: [tx, ty],
+    scale: k,
+  } = tiles;
+  return [(x + tx) * k, (y + ty) * k];
+}
+
 type TileCoordinate = [number, number, number];
+type TileCoordinateString = string;
 type TileInfo = TileCoordinate[] & {
   translate: [number, number];
   scale: number;
@@ -49,6 +59,7 @@ export class PixiTiles {
   tileInfo: TileInfo;
   app: PIXI.Application<HTMLCanvasElement>;
   pMain: PIXI.Container;
+  tileCache: Map<TileCoordinateString, PIXI.Graphics> = new Map();
 
   constructor(container: HTMLElement, height: number, width: number) {
     this.app = new PIXI.Application<HTMLCanvasElement>({
@@ -93,28 +104,33 @@ export class PixiTiles {
   }
 
   draw() {
-    function getTilePosition(tile: TileCoordinate, tiles: TileInfo) {
-      const [x, y] = tile;
-      const {
-        translate: [tx, ty],
-        scale: k,
-      } = tiles;
-      return [(x + tx) * k, (y + ty) * k];
-    }
-    this.pMain.removeChildren();
 
     for (const tile of this.tileInfo) {
+      const cachedTile = this.tileCache.get(tile.toString());
       const [x, y] = getTilePosition(tile, this.tileInfo);
+
+      if (cachedTile) {
+        cachedTile.visible = true;
+        cachedTile.position.set(x, y);
+        cachedTile.scale.set(this.tileInfo.scale / 256);
+        continue;
+      }
       const gTile = new PIXI.Graphics();
-      gTile.beginFill(Math.random() * 0xffffff);
+      gTile.beginFill(d3.interpolateRainbow(hilbert(...tile)));
       gTile.drawRect(0, 0, 256, 256);
       gTile.endFill();
       gTile.position.set(x, y);
       gTile.scale.set(this.tileInfo.scale / 256);
       this.pMain.addChild(gTile);
+      this.tileCache.set(tile.toString(), gTile);
     }
-  }
+    for (const [tileString, gTile] of this.tileCache) {
+      if (!this.tileInfo.find((tile) => tile.toString() === tileString)) {
+        gTile.visible = false;
+      }
+    }
 
+  }
   zoomed(transform: d3.ZoomTransform) {
     const tiles = this.tiler(transform); // gives you [[x, y, z], ...], scale, translate
     this.tileInfo = tiles;

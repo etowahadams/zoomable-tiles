@@ -10,13 +10,15 @@ function App() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    // Original D3 example
     // const plotElement = document.getElementById("map") as HTMLDivElement
     // plotElement.innerHTML = "";
     // plotElement.appendChild(map(800, 800));
 
-    const svgTilesElement = document.getElementById("svgTiles") as HTMLDivElement
-    svgTilesElement.innerHTML = "";
-    new SvgTiles(svgTilesElement, 1000, 1000);
+    // Object Oriented Approach
+    // const svgTilesElement = document.getElementById("svgTiles") as HTMLDivElement
+    // svgTilesElement.innerHTML = "";
+    // new SvgTiles(svgTilesElement, 1000, 1000);
 
     const pixiTilesElement = document.getElementById("pixiTiles") as HTMLDivElement
     pixiTilesElement.innerHTML = "";
@@ -25,7 +27,7 @@ function App() {
 
   return (
     <div className="card">
-     <h1>Tiles</h1>
+     <h1>Zoomed Tiles</h1>
      <div id="pixiTiles"></div>
      <div id="svgTiles"></div>
       {/* <div id="map"></div> */}
