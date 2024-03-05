@@ -20,6 +20,10 @@ function App() {
     // svgTilesElement.innerHTML = "";
     // new SvgTiles(svgTilesElement, 1000, 1000);
 
+    // const pixiTilesElement = document.getElementById("pixiTiles") as HTMLDivElement
+    // pixiTilesElement.innerHTML = "";
+    // new PixiTiles(pixiTilesElement, 1000, 1000);
+
     const pixiTilesElement = document.getElementById("pixiTiles") as HTMLDivElement
     pixiTilesElement.innerHTML = "";
     new PixiTiles(pixiTilesElement, 1000, 1000);

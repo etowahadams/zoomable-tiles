@@ -1,6 +1,40 @@
 import * as d3 from "d3";
+import { Selection } from "d3";
 import * as d3Tile from "d3-tile";
 import * as PIXI from "pixi.js";
+
+function rot(
+  n: number,
+  x: number,
+  y: number,
+  rx: number,
+  ry: number
+): [number, number] {
+  if (!ry) {
+    if (rx) {
+      x = n - 1 - x;
+      y = n - 1 - y;
+    }
+    return [y, x];
+  }
+  return [x, y];
+}
+
+function hilbert(x: number, y: number, z: number) {
+  const n = 1 << z;
+  let rx,
+    ry,
+    s,
+    d = 0;
+
+  for (s = n >> 1; s > 0; s >>= 1) {
+    rx = (x & s) > 0;
+    ry = (y & s) > 0;
+    d += s * s * ((3 * Number(rx)) ^ Number(ry));
+    [x, y] = rot(n, x, y, Number(rx), Number(ry));
+  }
+  return d / (1 << (z * 2));
+}
 
 function getTilePosition(tile: TileCoordinate, tiles: TileInfo) {
   const [x, y] = tile;
@@ -9,22 +43,6 @@ function getTilePosition(tile: TileCoordinate, tiles: TileInfo) {
     scale: k,
   } = tiles;
   return [(x + tx) * k, (y + ty) * k];
-}
-
-function createTexture() {
-  const size = 200;
-  const buff = new Uint8Array(size * size * 4);
-  const blue = Math.random() * 255;
-  const alpha = Math.random() * 255;
-  for (let i = 0; i < size * size; i++) {
-    buff[i * 4] = Math.floor(i / size); // red
-    buff[i * 4 + 1] = Math.floor(i % size); // green
-    buff[i * 4 + 2] = blue; // blue
-    buff[i * 4 + 3] = alpha; // alpha
-  }
-  // https://pixijs.download/release/docs/PIXI.BaseTexture.html#fromBuffer
-  const texture = PIXI.Texture.fromBuffer(buff, size, size);
-  return texture;
 }
 
 type TileCoordinate = [number, number, number];
@@ -40,12 +58,12 @@ export class PixiTiles {
   tiler: (transform: d3.ZoomTransform) => TileInfo;
   app: PIXI.Application<HTMLCanvasElement>;
   pMain: PIXI.Container;
-  tileCache: Map<TileCoordinateString, PIXI.Sprite> = new Map();
+  tileCache: Map<TileCoordinateString, PIXI.Graphics> = new Map();
 
   constructor(container: HTMLElement, height: number, width: number) {
     this.height = height;
     this.width = width;
-
+    
     // setup the PIXI app
     this.app = new PIXI.Application<HTMLCanvasElement>({
       width,
@@ -96,21 +114,19 @@ export class PixiTiles {
       if (cachedTile) {
         cachedTile.visible = true;
         cachedTile.position.set(x, y);
-        cachedTile.scale.set((256 / cachedTile.texture.width) * tilesToDraw.scale / 256);
+        cachedTile.scale.set(tilesToDraw.scale / 256);
         continue;
       }
       // If the tile is not in the cache, we need to create it
-      const texture = createTexture();
-      // get the height and width of the texture
-      console.warn(tilesToDraw.scale);
-
-      const sprite = new PIXI.Sprite(texture);
-
-      sprite.position.set(x, y);
-      sprite.scale.set((256 / sprite.texture.width) * tilesToDraw.scale / 256);
-      this.pMain.addChild(sprite);
+      const gTile = new PIXI.Graphics();
+      gTile.beginFill(d3.interpolateRainbow(hilbert(...tile)));
+      gTile.drawRect(0, 0, 256, 256);
+      gTile.endFill();
+      gTile.position.set(x, y);
+      gTile.scale.set(tilesToDraw.scale / 256);
+      this.pMain.addChild(gTile);
       // Add the created tile to the cache
-      this.tileCache.set(tile.toString(), sprite);
+      this.tileCache.set(tile.toString(), gTile);
     }
     // Hide any tiles that are in the cache but not in the tilesToDraw
     // The following could be optimized, but this is fine for now for simplicity
