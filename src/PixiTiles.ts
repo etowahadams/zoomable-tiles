@@ -2,6 +2,14 @@ import * as d3 from "d3";
 import * as d3Tile from "d3-tile";
 import * as PIXI from "pixi.js";
 
+type TileCoordinate = [number, number, number];
+type TileCoordinateString = string;
+type TileInfo = TileCoordinate[] & {
+  translate: [number, number];
+  scale: number;
+};
+
+// Utility function for getting the position of a tile
 function getTilePosition(tile: TileCoordinate, tiles: TileInfo) {
   const [x, y] = tile;
   const {
@@ -11,6 +19,7 @@ function getTilePosition(tile: TileCoordinate, tiles: TileInfo) {
   return [(x + tx) * k, (y + ty) * k];
 }
 
+// Creates a texture with random colors
 function createTexture() {
   const size = 200;
   const buff = new Uint8Array(size * size * 4);
@@ -26,13 +35,6 @@ function createTexture() {
   const texture = PIXI.Texture.fromBuffer(buff, size, size);
   return texture;
 }
-
-type TileCoordinate = [number, number, number];
-type TileCoordinateString = string;
-type TileInfo = TileCoordinate[] & {
-  translate: [number, number];
-  scale: number;
-};
 
 export class PixiTiles {
   height: number;
@@ -96,18 +98,18 @@ export class PixiTiles {
       if (cachedTile) {
         cachedTile.visible = true;
         cachedTile.position.set(x, y);
-        cachedTile.scale.set((256 / cachedTile.texture.width) * tilesToDraw.scale / 256);
+        cachedTile.scale.set(
+          ((256 / cachedTile.texture.width) * tilesToDraw.scale) / 256
+        );
         continue;
       }
       // If the tile is not in the cache, we need to create it
       const texture = createTexture();
-      // get the height and width of the texture
-      console.warn(tilesToDraw.scale);
-
       const sprite = new PIXI.Sprite(texture);
 
       sprite.position.set(x, y);
-      sprite.scale.set((256 / sprite.texture.width) * tilesToDraw.scale / 256);
+      const scaledTexture = 256 / sprite.texture.width;
+      sprite.scale.set((scaledTexture * tilesToDraw.scale) / 256);
       this.pMain.addChild(sprite);
       // Add the created tile to the cache
       this.tileCache.set(tile.toString(), sprite);
